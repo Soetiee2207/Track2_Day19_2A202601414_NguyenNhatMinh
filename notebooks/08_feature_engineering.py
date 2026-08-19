@@ -28,6 +28,7 @@
 # %%
 import _setup  # noqa: F401
 import subprocess
+import sys
 import warnings
 from pathlib import Path
 
@@ -40,6 +41,17 @@ from app.features import (auc, frequency_encode, generate_events, latest_join,
                           window_aggregates)
 
 ROOT = Path(_setup.__file__).resolve().parent.parent
+
+VENV_DIR = ROOT / ".venv"
+if (VENV_DIR / "Scripts" / "python.exe").exists():
+    PROJECT_PYTHON = VENV_DIR / "Scripts" / "python.exe"
+    FEAST_COMMAND = VENV_DIR / "Scripts" / "feast.exe"
+elif (VENV_DIR / "bin" / "python").exists():
+    PROJECT_PYTHON = VENV_DIR / "bin" / "python"
+    FEAST_COMMAND = VENV_DIR / "bin" / "feast"
+else:
+    PROJECT_PYTHON = Path(sys.executable)
+    FEAST_COMMAND = "feast"
 
 # %% [markdown]
 # ## 1. Event log
@@ -158,10 +170,10 @@ print(f"\n'lift ảo' sẽ mất khi lên production: {auc_lat - auc_pit:+.3f} A
 
 # %%
 repo = ROOT / "app" / "feast_repo_ondemand"
-subprocess.run(["python", str(ROOT / "scripts" / "gen_spend.py")], check=True,
+subprocess.run([str(PROJECT_PYTHON), str(ROOT / "scripts" / "gen_spend.py")], check=True,
                capture_output=True)
-subprocess.run(["feast", "apply"], cwd=repo, check=True, capture_output=True)
-subprocess.run(["feast", "materialize-incremental", "2027-01-01T00:00:00"],
+subprocess.run([str(FEAST_COMMAND), "apply"], cwd=repo, check=True, capture_output=True)
+subprocess.run([str(FEAST_COMMAND), "materialize-incremental", "2027-01-01T00:00:00"],
                cwd=repo, check=True, capture_output=True)
 print("feast apply + materialize OK")
 

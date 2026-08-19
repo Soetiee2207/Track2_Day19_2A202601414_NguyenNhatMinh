@@ -2,12 +2,17 @@
 ## Two paths: lightweight (default, no Docker) and full Docker.
 
 VENV     := .venv
-PY       := $(VENV)/bin/python
-PIP      := $(VENV)/bin/pip
-JUPYTER  := $(VENV)/bin/jupyter
-JUPYTEXT := $(VENV)/bin/jupytext
-UVICORN  := $(VENV)/bin/uvicorn
-PYTEST   := $(VENV)/bin/pytest
+ifeq ($(OS),Windows_NT)
+    VENV_BIN := $(VENV)/Scripts
+else
+    VENV_BIN := $(VENV)/bin
+endif
+PY       := $(VENV_BIN)/python
+PIP      := $(VENV_BIN)/pip
+JUPYTER  := $(VENV_BIN)/jupyter
+JUPYTEXT := $(VENV_BIN)/jupytext
+UVICORN  := $(VENV_BIN)/uvicorn
+PYTEST   := $(VENV_BIN)/pytest
 
 .DEFAULT_GOAL := help
 
@@ -32,7 +37,11 @@ api: ## [lite] Start FastAPI /search on http://localhost:8000
 	@$(UVICORN) app.main:app --reload --port 8000
 
 lab: ## [lite] Open Jupyter Lab on http://localhost:8888
-	@$(JUPYTEXT) --to notebook --update notebooks/[0-9]*.py 2>/dev/null || true
+ifeq ($(OS),Windows_NT)
+	-@$(JUPYTEXT) --to notebook --update notebooks/[0-9]*.py >nul 2>&1
+else
+	-@$(JUPYTEXT) --to notebook --update notebooks/[0-9]*.py 2>/dev/null
+endif
 	@$(JUPYTER) lab --notebook-dir=notebooks --ServerApp.token='' --no-browser
 
 benchmark: ## [both] Precision@10 (keyword/semantic/hybrid) + P99 latency table
@@ -55,12 +64,17 @@ notebooks: ## [both] Execute ALL notebooks headless (what the grader runs)
 	done
 
 clean-lite: ## [lite] Wipe venv + data + Feast registry
+ifeq ($(OS),Windows_NT)
+	-rmdir /s /q $(VENV) data\qdrant_storage app\feast_repo\data app\feast_repo_ondemand\data notebooks\.ipynb_checkpoints 2>nul
+	-del /q /f data\corpus_vn.jsonl data\golden_set.jsonl data\agent_queries.jsonl app\feast_repo\registry.db app\feast_repo\online_store.db app\feast_repo_ondemand\registry.db app\feast_repo_ondemand\online_store.db notebooks\*.ipynb 2>nul
+else
 	rm -rf $(VENV) data/corpus_vn.jsonl data/golden_set.jsonl data/qdrant_storage \
 	       data/agent_queries.jsonl \
 	       app/feast_repo/data app/feast_repo/registry.db app/feast_repo/online_store.db \
 	       app/feast_repo_ondemand/data app/feast_repo_ondemand/registry.db \
 	       app/feast_repo_ondemand/online_store.db \
 	       notebooks/*.ipynb notebooks/.ipynb_checkpoints
+endif
 
 # ─────────────────────────────────────────────────────────────
 # Docker path (full stack: Qdrant + Redis + Postgres)
